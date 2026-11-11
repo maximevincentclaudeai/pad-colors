@@ -5,7 +5,11 @@
  * Core services only (rows, one frame filter, one preview page), no hooks, so
  * "firmware": ["any"].
  *   - Mod Menu > Couleurs des pads: on/off, a color for the 8 pads, a color for the 4
- *     pad-mode buttons, and a preview page.
+ *     pad-mode buttons, and a preview page. 14 colors in all: a Mod Menu choice row holds
+ *     at most 8 labels, so each target has two rows (palette 1: Defaut + 7 colors,
+ *     palette 2: 7 more colors). Palette 2 wins when it is set.
+ *   - Every row is saved by the core in MODS/azmods.cfg on the USB (<id>:<key>), so the
+ *     choices are still there at the next power-on, with no code of ours.
  *   - A filter on the pad LED frame (AZ_BUS_ERP_LED) rewrites the cells of both sides just
  *     before the frame goes to the panel. It keeps what the deck itself decided: a pad or
  *     button the deck leaves dark stays dark, a dimmed one stays dimmed, and animations
@@ -37,13 +41,47 @@ static const pal_t PAL[] = {
     { "Bleu", 0x0020FF, { 0, 4, 255 } },
     { "Violet", 0xA000FF, { 90, 0, 255 } },
     { "Blanc", 0xFFFFFF, { 255, 255, 255 } },
+    /* palette 2 (indexes 8..14) */
+    { "Cyan", 0x00FFFF, { 0, 255, 255 } },
+    { "Magenta", 0xFF00FF, { 255, 0, 255 } },
+    { "Rose", 0xFF4090, { 255, 13, 71 } },
+    { "Turquoise", 0x00FFA0, { 0, 255, 90 } },
+    { "Bleu ciel", 0x40A0FF, { 13, 90, 255 } },
+    { "Lavande", 0xB080FF, { 111, 55, 255 } },
+    { "Ambre", 0xFF9000, { 255, 71, 0 } },
 };
-#define N_PAL 8
-static const char *const PAL_NAMES[N_PAL] = { "Defaut", "Rouge", "Orange", "Jaune",
-                                              "Vert",   "Bleu",  "Violet", "Blanc" };
+#define N_PAL 15                            /* entries in PAL */
+#define N_CHOICE 8                          /* labels in one choice row (the core's maximum) */
+#define PAL2_FIRST 8                        /* PAL index of palette 2's first color */
 
-static int h_enabled = -1, h_pads = -1, h_modes = -1;   /* row handles */
+/* Palette 1 keeps the old keys and order, so a value saved by version 1.0.0 still means the
+ * same color. Palette 2 starts with a neutral entry: "---" = use palette 1. */
+static const char *const NAMES_1[N_CHOICE] = { "Defaut", "Rouge", "Orange", "Jaune",
+                                               "Vert",   "Bleu",  "Violet", "Blanc" };
+static const char *const NAMES_2[N_CHOICE] = { "---",     "Cyan",  "Magenta", "Rose",
+                                               "Turquoise", "Bleu ciel", "Lavande", "Ambre" };
+
+static int h_enabled = -1, h_pads = -1, h_modes = -1;   /* row handles, palette 1 */
+static int h_pads2 = -1, h_modes2 = -1;                 /* row handles, palette 2 */
 static int filter_ok;                       /* frame_filter took the pad LED frame */
+
+/* The color a target ends up with: its palette 2 choice if set, else its palette 1 choice.
+ * Returns an index into PAL; 0 means the deck's own colors. */
+static int row_or_zero(int handle)
+{
+    if (handle < 0) return 0;
+    int v = C->row_value(handle);
+    return v > 0 ? v : 0;
+}
+
+static int effective(int h1, int h2)
+{
+    int b = row_or_zero(h2);
+    if (b > 0 && b < N_CHOICE) return PAL2_FIRST - 1 + b;     /* palette 2: 1..7 -> 8..14 */
+    int a = row_or_zero(h1);
+    if (a > 0 && a < N_CHOICE) return a;                      /* palette 1: 1..7 */
+    return 0;
+}
 
 /* ---- the LED frame ----------------------------------------------------------------- */
 
@@ -101,7 +139,7 @@ static int led_filter(int bus, unsigned char *f, int len, void *user)
     if (bus != AZ_BUS_ERP_LED || !f || len < FRAME_MIN) return AZ_FRAME_OK;
     if (h_enabled < 0 || h_pads < 0 || h_modes < 0) return AZ_FRAME_OK;
     if (C->row_value(h_enabled) != 1) return AZ_FRAME_OK;
-    int pi = C->row_value(h_pads), mi = C->row_value(h_modes);
+    int pi = effective(h_pads, h_pads2), mi = effective(h_modes, h_modes2);
     if (pi > 0 && pi < N_PAL) recolor_pads(f, &PAL[pi]);
     if (mi > 0 && mi < N_PAL) recolor_modes(f, &PAL[mi]);
     return AZ_FRAME_OK;
@@ -169,7 +207,7 @@ static void on_draw(az_draw *d, az_rect area, void *user)
         draw_fitted(d, area.x + pad, y + pad, "Reglages indisponibles.", px, dim, area.w - 2 * pad);
         return;
     }
-    const int pc = C->row_value(h_pads), mc = C->row_value(h_modes);
+    const int pc = effective(h_pads, h_pads2), mc = effective(h_modes, h_modes2);
     const int on = h_enabled >= 0 && C->row_value(h_enabled) == 1;
     const int size = row - 2 * pad;
 
@@ -218,28 +256,54 @@ static int init(const az_core_v1 *core)
         const az_row_v1 pads = {
             .size = sizeof(az_row_v1),
             .key = "pads",
-            .label = "Pads de performance",
+            .label = "Pads (palette 1)",
             .kind = AZ_ROW_CHOICE,
             .parent = h_enabled >= 0 ? "enabled" : NULL,
             .help = "Couleur des 8 pads",
-            .choices = PAL_NAMES,
-            .n_choices = N_PAL,
+            .choices = NAMES_1,
+            .n_choices = N_CHOICE,
             .default_choice = 0,
         };
         h_pads = C->register_row(MOD_ID, &pads);
 
+        const az_row_v1 pads2 = {
+            .size = sizeof(az_row_v1),
+            .key = "pads2",
+            .label = "Pads (palette 2)",
+            .kind = AZ_ROW_CHOICE,
+            .parent = h_enabled >= 0 ? "enabled" : NULL,
+            .help = "7 autres couleurs, prioritaires",
+            .choices = NAMES_2,
+            .n_choices = N_CHOICE,
+            .default_choice = 0,
+        };
+        h_pads2 = C->register_row(MOD_ID, &pads2);
+
         const az_row_v1 modes = {
             .size = sizeof(az_row_v1),
             .key = "modes",
-            .label = "Boutons de mode",
+            .label = "Boutons (palette 1)",
             .kind = AZ_ROW_CHOICE,
             .parent = h_enabled >= 0 ? "enabled" : NULL,
             .help = "Couleur des 4 boutons de mode",
-            .choices = PAL_NAMES,
-            .n_choices = N_PAL,
+            .choices = NAMES_1,
+            .n_choices = N_CHOICE,
             .default_choice = 0,
         };
         h_modes = C->register_row(MOD_ID, &modes);
+
+        const az_row_v1 modes2 = {
+            .size = sizeof(az_row_v1),
+            .key = "modes2",
+            .label = "Boutons (palette 2)",
+            .kind = AZ_ROW_CHOICE,
+            .parent = h_enabled >= 0 ? "enabled" : NULL,
+            .help = "7 autres couleurs, prioritaires",
+            .choices = NAMES_2,
+            .n_choices = N_CHOICE,
+            .default_choice = 0,
+        };
+        h_modes2 = C->register_row(MOD_ID, &modes2);
 
         const az_row_v1 preview = {
             .size = sizeof(az_row_v1),

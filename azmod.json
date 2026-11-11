@@ -2,14 +2,16 @@
   "azmod": 1,
   "id": "mvcai-pad-colors",
   "name": "Pad Colors",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "maximevincentclaudeai",
-  "summary": "Choose the color of the performance pads and the pad-mode buttons from the Mod Menu.",
-  "description": "Recolors the 8 performance pads and the 4 pad-mode buttons of both sides with a color you pick in the Mod Menu (red, orange, yellow, green, blue, violet, white). The deck's dark, dimmed and animated pads keep their brightness and rhythm; only the hue changes.\n\nIt rewrites the pad LED frame before it reaches the panel. It does not patch the deck's code, change audio or use the network.",
+  "summary": "Choose the color of the performance pads and the pad-mode buttons from 14 colors, saved on the USB.",
+  "description": "Recolors the 8 performance pads and the 4 pad-mode buttons of both sides with one of 14 colors you pick in the Mod Menu (two palettes of 7). The deck's dark, dimmed and animated pads keep their brightness and rhythm; only the hue changes. Your choices are saved on the USB stick.\n\nIt rewrites the pad LED frame before it reaches the panel. It does not patch the deck's code, change audio or use the network.",
   "license": "GPL-3.0-only",
   "source": "https://github.com/maximevincentclaudeai/pad-colors",
   "api": 1,
-  "firmware": ["any"],
+  "firmware": [
+    "any"
+  ],
   "hooks": false,
   "min_core": "1.2.3",
   "category": "controls"
