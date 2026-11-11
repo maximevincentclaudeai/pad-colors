@@ -3,5 +3,27 @@
   "name": "Pad Colors",
   "maintainer": "maximevincentclaudeai",
   "homepage": "https://github.com/maximevincentclaudeai/pad-colors",
-  "mods": []
+  "mods": [
+    {
+      "id": "mvcai-pad-colors",
+      "name": "Pad Colors",
+      "version": "1.1.0",
+      "author": "maximevincentclaudeai",
+      "summary": "Choose the color of the performance pads and the pad-mode buttons from 14 colors, saved on the USB.",
+      "icon": "https://github.com/maximevincentclaudeai/pad-colors/releases/download/mvcai-pad-colors-1.1.0/mvcai-pad-colors-1.1.0-icon.png",
+      "package": "https://github.com/maximevincentclaudeai/pad-colors/releases/download/mvcai-pad-colors-1.1.0/mvcai-pad-colors-1.1.0.azmod",
+      "sha256": "a74c8831e2d27663cdefeb1ea82b3001338274b4a12eb522ce541f7d70834e0d",
+      "size": 55820,
+      "firmware": [
+        "any"
+      ],
+      "hooks": false,
+      "source": "https://github.com/maximevincentclaudeai/pad-colors",
+      "updated": "2026-11-11",
+      "category": "controls",
+      "license": "GPL-3.0-only",
+      "min_core": "1.2.3",
+      "description": "Recolors the 8 performance pads and the 4 pad-mode buttons of both sides with one of 14 colors you pick in the Mod Menu (two palettes of 7). The deck's dark, dimmed and animated pads keep their brightness and rhythm; only the hue changes. Your choices are saved on the USB stick.\n\nIt rewrites the pad LED frame before it reaches the panel. It does not patch the deck's code, change audio or use the network."
+    }
+  ]
 }
